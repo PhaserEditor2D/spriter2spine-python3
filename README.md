@@ -4,14 +4,12 @@ Convert .scml files to spine .json files.
 
 Base on Spriter Pro R11 and Spine 3.8.
 
-[中文说明](./README-zh_CN.md)
-
 # Usage
-## Windows
+
 Execute the following command from the command line
 
 ```
-./spriter2spine.exe -i xxx -o xxxx
+python3 spriter2spine.py -i xxx -o xxxx
 ```
 
 * -i specify the input folder or file
@@ -23,7 +21,7 @@ Execute the following command from the command line
 * search folder named 'test' from current folder, convert all the .scml file to spine json file, store them back in folder 'test' .
 
   ```
-  ./spriter2spine.exe -i ./test -o ./test
+  python3 spriter2spine.py -i ./test -o ./test
   ```
 
 * search folder named 'test' from current folder, convert all the .scml file to spine json file, store them in a folder named 'output'.
@@ -38,21 +36,24 @@ Execute the following command from the command line
   ./spriter2spine.exe -i ./Animation.scml -o xxx
   ```
 
-## Linux or Mac OS
-* [Install Python 2.7](https://www.python.org/download/releases/2.7)
+## Install
 
-* [Install pip](https://pip.pypa.io/en/stable/installing/)
+* Install Python 3
+
+* Install pip
 
 * Install 'xmltodict' module. Execute the following command from the command line.
   ```
-  pip install xmltodict
+  python3 -m pip install xmltodict
   ```
 
 *  For Convert files, execute the following command. similar to windows's usage
    ```
-   python ./src/spriter2spine.py -i xxx -o xxx
+   python3 ./src/spriter2spine.py -i xxx -o xxx
    ```
+
 ## Unsupported Features
+
 * Bone hierarchy animation. it mean that you can't change the bone hierarchical relation in animation.
 
 * Bone alpha. If you set alpha to a bone, it will not be convert to the spine version.
