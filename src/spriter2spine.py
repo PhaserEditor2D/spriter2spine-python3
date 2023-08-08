@@ -26,7 +26,7 @@ def write_json(data_dict, path):
 
 
 def load_tags(obj, name):
-    if not obj.has_key(name):
+    if name not in obj:
         return [] 
 
     tag_objs = obj[name]
@@ -37,7 +37,7 @@ def load_tags(obj, name):
 
 
 def load_float(obj, name, default=None):
-    if not obj.has_key(name): return default
+    if name not in obj: return default
     return float(obj[name])
 
 
@@ -112,11 +112,11 @@ def extract_spriter_data(in_path):
                 'name': a['@name'],
                 'interval': float(a['@interval']),
                 'length': float(a['@length']),
-                'looping': not a.has_key('@looping') and True or a['@looping'] == 'true',
-                'l': float(a.has_key('@l') and a['@l'] or 0),
-                'r': float(a.has_key('@r') and a['@r'] or 100),
-                't': float(a.has_key('@t') and a['@t'] or 0),
-                'b': float(a.has_key('@b') and a['@b'] or 100),
+                'looping': '@looping' not in a and True or a['@looping'] == 'true',
+                'l': float('@l' in a and a['@l'] or 0),
+                'r': float('@r' in a and a['@r'] or 100),
+                't': float('@t' in a and a['@t'] or 0),
+                'b': float('@b' in a and a['@b'] or 100),
                 'key': {},
                 'timelines': {}
             }
@@ -125,19 +125,19 @@ def extract_spriter_data(in_path):
 
             xml_keys = load_tags(a['mainline'], 'key')
             for _, k in enumerate(xml_keys):
-                aobj = {'bone_ref': {}, 'obj_ref': {}, 'time': k.has_key('@time') and float(k['@time']) or 0}
+                aobj = {'bone_ref': {}, 'obj_ref': {}, 'time': '@time' in k and float(k['@time']) or 0}
                 ani['key'][k['@id']] = aobj
                 for _, br in enumerate(load_tags(k, 'bone_ref')):
                     aobj['bone_ref'][br['@id']] = {
                         'timeline_id': br['@timeline'],
-                        'parent': br.has_key('@parent') and br['@parent'] or None
+                        'parent': '@parent' in br and br['@parent'] or None
                     }
 
                 for _, br in enumerate(load_tags(k, 'object_ref')):
                     aobj['obj_ref'][br['@id']] = {
                         'timeline_id': br['@timeline'],
                         'z_index': int(br['@z_index']),
-                        'parent': br.has_key('@parent') and br['@parent'] or None
+                        'parent': '@parent' in br and br['@parent'] or None
                     }
 
             xml_timelines = load_tags(a, 'timeline')
@@ -147,7 +147,7 @@ def extract_spriter_data(in_path):
                     'id': xml_timeline['@id'],
                     'name': xml_timeline['@name'],
                     'kfrms': [],
-                    'is_bone': xml_timeline.has_key('@object_type'),
+                    'is_bone': '@object_type' in xml_timeline,
                 }
                 timelines[xml_timeline['@id']] = timeline
                 kfrms = timeline['kfrms']
@@ -156,7 +156,7 @@ def extract_spriter_data(in_path):
                     kfrm = {}
                     kfrms.append(kfrm)
 
-                    kfrm['time'] = xml_kfrm.has_key('@time') and float(xml_kfrm['@time']) or 0
+                    kfrm['time'] = '@time' in xml_kfrm and float(xml_kfrm['@time']) or 0
 
                     objk = timeline['is_bone'] and 'bone' or 'object'
 
@@ -168,7 +168,7 @@ def extract_spriter_data(in_path):
                     kfrm['alpha'] = load_float(xml_kfrm[objk], '@a')
                     kfrm['folder'] = (not timeline['is_bone']) and xml_kfrm[objk]['@folder'] or None
                     kfrm['file'] = (not timeline['is_bone']) and xml_kfrm[objk]['@file'] or None
-                    kfrm['curve'] = xml_kfrm.has_key('@curve_type') and xml_kfrm['@curve_type'] or None
+                    kfrm['curve'] = '@curve_type' in xml_kfrm and xml_kfrm['@curve_type'] or None
                     kfrm['c1'] = load_float(xml_kfrm, '@c1')
                     kfrm['c2'] = load_float(xml_kfrm, '@c2')
                     kfrm['c3'] = load_float(xml_kfrm, '@c3')
@@ -179,17 +179,17 @@ def extract_spriter_data(in_path):
 def sort_parent(parent, root_first):
     depth = {}
     lst = []
-    for k in parent.keys():
+    for k in list(parent.keys()):
         lst.append(k)
-        if depth.has_key(k): continue
+        if k in depth: continue
 
         cur_k = k
         dep = 0
 
-        while parent.has_key(cur_k):
+        while cur_k in parent:
             dep = dep + 1
             cur_k = parent[cur_k]
-            if depth.has_key(cur_k):
+            if cur_k in depth:
                 dep = depth[cur_k] + dep
                 break
 
@@ -199,7 +199,7 @@ def sort_parent(parent, root_first):
         while dep > 0:
             dep = dep - 1
             cur_k = parent[cur_k]
-            if depth.has_key(cur_k): break
+            if cur_k in depth: break
             depth[cur_k] = dep
 
     lst.sort(key=lambda a: depth[a], reverse=not root_first)
@@ -208,15 +208,15 @@ def sort_parent(parent, root_first):
 
 def save_children(parent, bone_lst, bone_init_info):
     for _, name in enumerate(reversed(bone_lst)):
-        if not parent.has_key(name):
+        if name not in parent:
             continue
 
         p = parent[name]
 
-        if not bone_init_info.has_key(p):
+        if p not in bone_init_info:
             continue
 
-        bone_init_info[p]['children'] = bone_init_info[p].has_key('children') and bone_init_info[p]['children'] or []
+        bone_init_info[p]['children'] = 'children' in bone_init_info[p] and bone_init_info[p]['children'] or []
         bone_init_info[p]['children'].append(name)
 
 
@@ -278,7 +278,7 @@ def extract_bone_data(bones, entity, folder_file_map, bone_init_info, ani_timeli
         # so, here we check if have any hierarchy animation.
         result, reason = check_hierarchy_animation(ani['key'])
         if not result:
-            print '[WARNING] Unsupported bone hierarchy animation: entity name(%s) ani name(%s) %s' % (entity['name'], ani['name'], reason)
+            print('[WARNING] Unsupported bone hierarchy animation: entity name(%s) ani name(%s) %s' % (entity['name'], ani['name'], reason))
             return False
 
         timeline_obj_key = {}
@@ -291,23 +291,23 @@ def extract_bone_data(bones, entity, folder_file_map, bone_init_info, ani_timeli
         name2zindex = {}
 
         timelineid2bone = {}
-        for key in ani['key'].values():
-            for bone_id, v in key['bone_ref'].items():
+        for key in list(ani['key'].values()):
+            for bone_id, v in list(key['bone_ref'].items()):
                 bone_name = timelines[v['timeline_id']]['name']
                 boneid2name[bone_id] = bone_name
                 timelineid2bone[v['timeline_id']] = v
 
-            for obj_id, v in key['obj_ref'].items():
+            for obj_id, v in list(key['obj_ref'].items()):
                 timelineid2bone[v['timeline_id']] = v
 
-        for timeline_id, v in timelineid2bone.items():
+        for timeline_id, v in list(timelineid2bone.items()):
             parent_id = v['parent']
             bone_name = timelines[timeline_id]['name']
-            if v.has_key('z_index'):
+            if 'z_index' in v:
                 bone_name = 'ext_%s' % bone_name
                 name2zindex[bone_name] = v['z_index']
 
-            local_parent[bone_name] = boneid2name.has_key(parent_id) and boneid2name[parent_id] or None
+            local_parent[bone_name] = parent_id in boneid2name and boneid2name[parent_id] or None
             name2timeline[bone_name] = timelines[timeline_id]
 
         merge_parent(parent, local_parent, bone_length, bone_init_info, timeline_obj_key, name2timeline, name2zindex)
@@ -331,11 +331,11 @@ def extract_bone_data(bones, entity, folder_file_map, bone_init_info, ani_timeli
 
         p = parent[name]
 
-        if not info.has_key('children') or len(info['children']) == 0:
+        if 'children' not in info or len(info['children']) == 0:
             sx = timeline['scalex'] == None and 1 or timeline['scalex']
             sy = timeline['scaley'] == None and 1 or timeline['scaley']
 
-            while bone_init_info.has_key(p):
+            while p in bone_init_info:
                 pinfo = bone_init_info[p]
                 ptimeline = pinfo['timeline']
                 psx = ptimeline['scalex'] == None and 1 or ptimeline['scalex']
@@ -348,7 +348,7 @@ def extract_bone_data(bones, entity, folder_file_map, bone_init_info, ani_timeli
                 sy *= psy
                 p = parent[p]
 
-        elif bone_init_info.has_key(p):
+        elif p in bone_init_info:
                 parent_timeline = bone_init_info[p]['timeline']
                 fx = fx * (parent_timeline['scalex'] == None and 1 or parent_timeline['scalex'])
                 fy = fy * (parent_timeline['scaley'] == None and 1 or parent_timeline['scaley'])
@@ -387,8 +387,8 @@ def merge_parent(parent, local_parent, bone_length, bone_init_info, timeline_obj
     visited = {}
     k_stack = []
 
-    for k in local_parent.keys():
-        if visited.has_key(k): continue
+    for k in list(local_parent.keys()):
+        if k in visited: continue
 
         cur_k = k
         while True:
@@ -403,7 +403,7 @@ def merge_parent(parent, local_parent, bone_length, bone_init_info, timeline_obj
             next_prefix = '%s-%s' % (prefix, cur_k)
             parent[next_prefix] = prefix
             timeline_obj_key[name2timeline[cur_k]['id']] = next_prefix
-            if not bone_init_info.has_key(next_prefix):
+            if next_prefix not in bone_init_info:
                 bone_name = name2timeline[cur_k]['name']
                 is_bone = name2timeline[cur_k]['is_bone']
                 bone_init_info[next_prefix] = {
@@ -419,16 +419,16 @@ def merge_parent(parent, local_parent, bone_length, bone_init_info, timeline_obj
 def check_hierarchy_animation(key_datas):
     h_info = {}
     
-    for key_id, key in key_datas.items():
-        for k, v in key['bone_ref'].items():
-            if not h_info.has_key(v['timeline_id']):
+    for key_id, key in list(key_datas.items()):
+        for k, v in list(key['bone_ref'].items()):
+            if v['timeline_id'] not in h_info:
                 h_info[v['timeline_id']] = v['parent']
                 continue
             if h_info[v['timeline_id']] != v['parent']:
                 return (False, 'mainline id(%s) time: %f bone_ref id(%s): bone hierarchy inconsistent!' % (key_id, key['time'], k))
 
-        for k, v in key['obj_ref'].items():
-            if not h_info.has_key(v['timeline_id']):
+        for k, v in list(key['obj_ref'].items()):
+            if v['timeline_id'] not in h_info:
                 h_info[v['timeline_id']] = v['parent']
                 continue
             if h_info[v['timeline_id']] != v['parent']:
@@ -437,7 +437,7 @@ def check_hierarchy_animation(key_datas):
     return (True, '')
 
 def extract_slot_and_skin(slots, skins, folder_file_map, bone_init_info):
-    for bone_name, info in bone_init_info.items():
+    for bone_name, info in list(bone_init_info.items()):
         if info['is_bone']: continue
 
         timeline = info['timeline']
@@ -461,19 +461,19 @@ def extract_slot_and_skin(slots, skins, folder_file_map, bone_init_info):
 
 def check_and_fill_skin(skins, slot_name, attachment, img_config):
     if not attachment: return
-    skins[slot_name] = skins.has_key(slot_name) and skins[slot_name] or {}
-    skins[slot_name][attachment] = skins[slot_name].has_key(attachment) and skins[slot_name][attachment] or {
+    skins[slot_name] = slot_name in skins and skins[slot_name] or {}
+    skins[slot_name][attachment] = attachment in skins[slot_name] and skins[slot_name][attachment] or {
             'name': attachment,         
             'width': img_config['width'],
             'height': img_config['height']
     }
 
 def set_bone_visible(bone_visible, time, key, visible):
-    bone_visible[key] = bone_visible.has_key(key) and bone_visible[key] or []
+    bone_visible[key] = key in bone_visible and bone_visible[key] or []
     bone_visible[key].append((time, visible))
 
 def check_bone_visible(bone_visible, time, key):
-    if not bone_visible.has_key(key): return True
+    if key not in bone_visible: return True
     visibles = bone_visible[key]
     for i in range(len(visibles) - 1, -1, -1):
         if time >= visibles[i][0]:
@@ -496,13 +496,13 @@ def record_key_frm_action(acts, ms_time, key, bone_init_info, act_type, arg):
     time = calc_spine_time(ms_time)
 
     if act_type == 'draw_order':
-        acts['drawOrder'] = acts.has_key('drawOrder') and acts['drawOrder'] or []
+        acts['drawOrder'] = 'drawOrder' in acts and acts['drawOrder'] or []
         is_exist = False
 
         for _, v in enumerate(acts['drawOrder']):
             if abs(v['time'] - time) > sys.float_info.epsilon: continue
             if arg:
-                v['offsets'] = v.has_key('offsets') and v['offsets'] or []
+                v['offsets'] = 'offsets' in v and v['offsets'] or []
                 v['offsets'].append({'offset': arg, 'slot': key})
             is_exist = True
 
@@ -513,29 +513,29 @@ def record_key_frm_action(acts, ms_time, key, bone_init_info, act_type, arg):
             acts['drawOrder'].append(draw_order)
 
     elif act_type == 'attachment':
-         acts['slots'] = acts.has_key('slots') and acts['slots'] or {}
-         acts['slots'][key] = acts['slots'].has_key(key) and acts['slots'][key] or {}
-         acts['slots'][key]['attachment'] = acts['slots'][key].has_key('attachment') and acts['slots'][key]['attachment'] or []
+         acts['slots'] = 'slots' in acts and acts['slots'] or {}
+         acts['slots'][key] = key in acts['slots'] and acts['slots'][key] or {}
+         acts['slots'][key]['attachment'] = 'attachment' in acts['slots'][key] and acts['slots'][key]['attachment'] or []
          acts['slots'][key]['attachment'].append({'time': time, 'name': arg})
 
     elif act_type == 'alpha':
          info = bone_init_info[key]
          alpha = arg
          if info['is_bone']:
-             print '[WARNING] Unsupported bone alpha setting: name(%s) time(%f)' % (key, alpha)
+             print('[WARNING] Unsupported bone alpha setting: name(%s) time(%f)' % (key, alpha))
              return
 
          data = {'time': time, 'color': hex(0xffffff00 | int(255 * alpha))[2:-1]}
          
-         acts['slots'] = acts.has_key('slots') and acts['slots'] or {}
-         acts['slots'][key] = acts['slots'].has_key(key) and acts['slots'][key] or {}
-         acts['slots'][key]['color'] = acts['slots'][key].has_key('color') and acts['slots'][key]['color'] or []
+         acts['slots'] = 'slots' in acts and acts['slots'] or {}
+         acts['slots'][key] = key in acts['slots'] and acts['slots'][key] or {}
+         acts['slots'][key]['color'] = 'color' in acts['slots'][key] and acts['slots'][key]['color'] or []
          acts['slots'][key]['color'].append(data)
 
     elif act_type == 'translate':
-         acts['bones'] = acts.has_key('bones') and acts['bones'] or {}
-         acts['bones'][key] = acts['bones'].has_key(key) and acts['bones'][key] or {}
-         acts['bones'][key]['translate'] = acts['bones'][key].has_key('translate') and acts['bones'][key]['translate'] or []
+         acts['bones'] = 'bones' in acts and acts['bones'] or {}
+         acts['bones'][key] = key in acts['bones'] and acts['bones'][key] or {}
+         acts['bones'][key]['translate'] = 'translate' in acts['bones'][key] and acts['bones'][key]['translate'] or []
 
          x, y, curve_info = arg[0], arg[1], arg[2]
          bx, by = bone_init_info[key]['x'], bone_init_info[key]['y']
@@ -545,9 +545,9 @@ def record_key_frm_action(acts, ms_time, key, bone_init_info, act_type, arg):
          acts['bones'][key]['translate'].append(data)
 
     elif act_type == 'rotate':
-         acts['bones'] = acts.has_key('bones') and acts['bones'] or {}
-         acts['bones'][key] = acts['bones'].has_key(key) and acts['bones'][key] or {}
-         acts['bones'][key]['rotate'] = acts['bones'][key].has_key('rotate') and acts['bones'][key]['rotate'] or []
+         acts['bones'] = 'bones' in acts and acts['bones'] or {}
+         acts['bones'][key] = key in acts['bones'] and acts['bones'][key] or {}
+         acts['bones'][key]['rotate'] = 'rotate' in acts['bones'][key] and acts['bones'][key]['rotate'] or []
          bangle = bone_init_info[key]['angle']
 
          angle, curve_info = arg[0], arg[1]
@@ -557,9 +557,9 @@ def record_key_frm_action(acts, ms_time, key, bone_init_info, act_type, arg):
          acts['bones'][key]['rotate'].append(data)
 
     elif act_type == 'scale':
-         acts['bones'] = acts.has_key('bones') and acts['bones'] or {}
-         acts['bones'][key] = acts['bones'].has_key(key) and acts['bones'][key] or {}
-         acts['bones'][key]['scale'] = acts['bones'][key].has_key('scale') and acts['bones'][key]['scale'] or []
+         acts['bones'] = 'bones' in acts and acts['bones'] or {}
+         acts['bones'][key] = key in acts['bones'] and acts['bones'][key] or {}
+         acts['bones'][key]['scale'] = 'scale' in acts['bones'][key] and acts['bones'][key]['scale'] or []
 
          x, y, curve_info = arg[0], arg[1], arg[2]
          bx, by = bone_init_info[key]['sx'], bone_init_info[key]['sy']
@@ -570,40 +570,40 @@ def record_key_frm_action(acts, ms_time, key, bone_init_info, act_type, arg):
          acts['bones'][key]['scale'].append(data)
 
 def fix_draw_order_acts(acts, default_draw_order):
-    if not acts.has_key('drawOrder'): return
+    if 'drawOrder' not in acts: return
 
     draw_orders = acts['drawOrder']
 
     for order_act in draw_orders:
-        if not order_act.has_key('offsets'): continue
+        if 'offsets' not in order_act: continue
 
         offsets = order_act['offsets']
         offsets.sort(key = lambda s: default_draw_order[s['slot']])
 
 
 def sort_key_frm_actions(acts):
-    if acts.has_key('drawOrder'):
+    if 'drawOrder' in acts:
         acts['drawOrder'].sort(key = lambda a: a['time'])
 
-    if acts.has_key('slots'):
-        for v in acts['slots'].values():
-            if v.has_key('attachment'): v['attachment'].sort(key = lambda a: a['time'])
-            if v.has_key('color'): v['color'].sort(key = lambda a: a['time'])
+    if 'slots' in acts:
+        for v in list(acts['slots'].values()):
+            if 'attachment' in v: v['attachment'].sort(key = lambda a: a['time'])
+            if 'color' in v: v['color'].sort(key = lambda a: a['time'])
 
-    if acts.has_key('bones'):
-        for v in acts['bones'].values():
-            if v.has_key('translate'): v['translate'].sort(key = lambda a: a['time'])
-            if v.has_key('rotate'): v['rotate'].sort(key = lambda a: a['time'])
-            if v.has_key('scale'): v['scale'].sort(key = lambda a: a['time'])
+    if 'bones' in acts:
+        for v in list(acts['bones'].values()):
+            if 'translate' in v: v['translate'].sort(key = lambda a: a['time'])
+            if 'rotate' in v: v['rotate'].sort(key = lambda a: a['time'])
+            if 'scale' in v: v['scale'].sort(key = lambda a: a['time'])
 
 def optimal_default_act(act, default_act):
     if not default_act: return
-    for k, v in act.items(): 
+    for k, v in list(act.items()): 
         if k == 'time': continue
-        if not default_act.has_key(k): return
+        if k not in default_act: return
         if default_act[k] != v: return
 
-    for k , v in default_act.items():
+    for k , v in list(default_act.items()):
         del act[k]
 
 def remove_unnecessary_action(actions, default_act):
@@ -618,8 +618,8 @@ def remove_unnecessary_action(actions, default_act):
             continue
 
         is_diff = False
-        for k, v in act.items():
-            if k != 'time' and (not lst_act.has_key(k) or lst_act[k] != v):
+        for k, v in list(act.items()):
+            if k != 'time' and (k not in lst_act or lst_act[k] != v):
                 is_diff = True
                 break
 
@@ -654,15 +654,15 @@ DEFAULT_ACTION_DICT = {
     'scale': {'x': 1, 'y': 1}
 }
 def optimal_animation_data(acts):
-    if acts.has_key('slots'):
-        for v in acts['slots'].values():
-            if v.has_key('attachment'): remove_unnecessary_action(v['attachment'], DEFAULT_ACTION_DICT['attachment'])
-            if v.has_key('color'): remove_unnecessary_action(v['color'], DEFAULT_ACTION_DICT['color'])
-    if acts.has_key('bones'):
-        for v in acts['bones'].values():
-            if v.has_key('translate'): remove_unnecessary_action(v['translate'], DEFAULT_ACTION_DICT['translate'])
-            if v.has_key('rotate'): remove_unnecessary_action(v['rotate'], DEFAULT_ACTION_DICT['rotate'])
-            if v.has_key('scale'): remove_unnecessary_action(v['scale'], DEFAULT_ACTION_DICT['scale'])
+    if 'slots' in acts:
+        for v in list(acts['slots'].values()):
+            if 'attachment' in v: remove_unnecessary_action(v['attachment'], DEFAULT_ACTION_DICT['attachment'])
+            if 'color' in v: remove_unnecessary_action(v['color'], DEFAULT_ACTION_DICT['color'])
+    if 'bones' in acts:
+        for v in list(acts['bones'].values()):
+            if 'translate' in v: remove_unnecessary_action(v['translate'], DEFAULT_ACTION_DICT['translate'])
+            if 'rotate' in v: remove_unnecessary_action(v['rotate'], DEFAULT_ACTION_DICT['rotate'])
+            if 'scale' in v: remove_unnecessary_action(v['scale'], DEFAULT_ACTION_DICT['scale'])
     
 
 def check_and_fill_ani_action(datas, end_time, is_looping):
@@ -675,18 +675,18 @@ def check_and_fill_ani_action(datas, end_time, is_looping):
 
 def fill_ani_time(acts, end_time, is_looping):
     end_time = calc_spine_time(end_time)
-    if acts.has_key('slots'):
-        for v in acts['slots'].values():
-            if not v.has_key('color'): continue
+    if 'slots' in acts:
+        for v in list(acts['slots'].values()):
+            if 'color' not in v: continue
             check_and_fill_ani_action(v['color'], end_time, is_looping)
 
-    if acts.has_key('bones'):
-        for v in acts['bones'].values():
-            if v.has_key('translate'):
+    if 'bones' in acts:
+        for v in list(acts['bones'].values()):
+            if 'translate' in v:
                 check_and_fill_ani_action(v['translate'], end_time, is_looping)
-            if v.has_key('rotate'):
+            if 'rotate' in v:
                 check_and_fill_ani_action(v['rotate'], end_time, is_looping)
-            if v.has_key('scale'):
+            if 'scale' in v:
                 check_and_fill_ani_action(v['scale'], end_time, is_looping)
 
 def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_info, ani_timeline_obj_key):
@@ -702,22 +702,22 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
         last_order = {}
         bone_visible = {}
 
-        keys = ani['key'].values()
+        keys = list(ani['key'].values())
         keys.sort(key = lambda k: k['time'])
 
         for k in keys:
             showed_slot = {}
             time = k['time']
-            for bone_ref in k['bone_ref'].values():
+            for bone_ref in list(k['bone_ref'].values()):
                 bone_name = timeline_obj_key[bone_ref['timeline_id']]
 
             has_order_changed = False
-            for obj_ref in k['obj_ref'].values():  
+            for obj_ref in list(k['obj_ref'].values()):  
                 slot_name = timeline_obj_key[obj_ref['timeline_id']]
                 showed_slot[slot_name] = True
                 set_bone_visible(bone_visible, time, slot_name, True)
 
-                if last_order.has_key(slot_name):
+                if slot_name in last_order:
                     if last_order[slot_name] != obj_ref['z_index']:
                         has_order_changed = True
                 elif default_draw_order[slot_name] != obj_ref['z_index']:
@@ -726,12 +726,12 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
                 last_order[slot_name] = obj_ref['z_index']
 
             if has_order_changed:
-                for obj_ref in k['obj_ref'].values():  
+                for obj_ref in list(k['obj_ref'].values()):  
                     slot_name = timeline_obj_key[obj_ref['timeline_id']]
                     record_key_frm_action(acts, time, slot_name, bone_init_info, 'draw_order', obj_ref['z_index'] - default_draw_order[slot_name])
 
-            for slot_name, info in bone_init_info.items():
-                if showed_slot.has_key(slot_name): continue
+            for slot_name, info in list(bone_init_info.items()):
+                if slot_name in showed_slot: continue
                 if info['is_bone']: continue
                 set_bone_visible(bone_visible, k['time'], slot_name, False)
                 record_key_frm_action(acts, k['time'], slot_name, bone_init_info, 'attachment', '')
@@ -741,7 +741,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
         fix_draw_order_acts(acts, default_draw_order)
 
         bone_time_state = {}
-        for t in ani['timelines'].values():
+        for t in list(ani['timelines'].values()):
             key = timeline_obj_key[t['id']]
             kfrms =  t['kfrms']
             bone_time_state[key] = []
@@ -759,7 +759,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
         # TODO: fix bone scale animation. - 2020.09.03
         
         last_attachment = {}
-        for t in ani['timelines'].values():
+        for t in list(ani['timelines'].values()):
             key = timeline_obj_key[t['id']]
             kfrms =  t['kfrms']
             len_kfrms = len(kfrms)
@@ -776,7 +776,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
                     w, h = img_config['width'], img_config['height']
                     pivotx, pivoty = img_config['pivotx'], img_config['pivoty']
                     attachment_name = get_attachment_name(img_config['name'])
-                    if (not last_attachment.has_key(key)\
+                    if (key not in last_attachment\
                         or attachment_name != last_attachment[key]):
 
                         record_key_frm_action(acts, time, key, bone_init_info, 'attachment', attachment_name)
@@ -790,13 +790,13 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
                 fy = kfrm['y'] or 0
 
                 p = info['parent']
-                states = bone_time_state.has_key(p) and bone_time_state[p] or []
+                states = p in bone_time_state and bone_time_state[p] or []
 
-                if not info.has_key('children') or len(info['children']) == 0:
+                if 'children' not in info or len(info['children']) == 0:
                     sx = kfrm['scalex'] == None and 1 or kfrm['scalex']
                     sy = kfrm['scaley'] == None and 1 or kfrm['scaley']
 
-                    while bone_init_info.has_key(p):
+                    while p in bone_init_info:
                         states = bone_time_state[p]
                         psx, psy = find_scales_in_keyfrm_state(time, states, bone_init_info[p]['osx'], bone_init_info[p]['osy'])
 
@@ -806,7 +806,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
                         sx *= psx
                         sy *= psy
                         p = bone_init_info[p]['parent']
-                elif bone_init_info.has_key(p):
+                elif p in bone_init_info:
                         psx, psy = find_scales_in_keyfrm_state(time, states, bone_init_info[p]['osx'], bone_init_info[p]['osy'])
                         fx = fx * psx
                         fy = fy * psy
@@ -817,7 +817,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
                 curve_info = None
                 if kfrm['curve']:
                     if kfrm['curve'] == 'cubic':
-                        print '[WARNING] Unsupported curve type \'1d Speed Curve\': ani name(%s) time(%f) timeline(%s)' % (ani['name'], time, t['name'])
+                        print('[WARNING] Unsupported curve type \'1d Speed Curve\': ani name(%s) time(%f) timeline(%s)' % (ani['name'], time, t['name']))
                     else:
                         curve_info = (kfrm['curve'], kfrm['c1'], kfrm['c2'], kfrm['c3'], kfrm['c4'])
 
@@ -827,7 +827,7 @@ def extract_animations(anis, slots, skins, entity, folder_file_map, bone_init_in
 
                 if not bone_init_info[key]['is_bone']:
                     if i < len_kfrms - 1 and kfrm['alpha'] != kfrms[i + 1]['alpha'] and kfrm['curve']:
-                        print '[WARNING] Unsupported animation curve to \'alpha\': ani name(%s) time(%f) timeline(%s)' % (ani['name'], time, t['name'])
+                        print('[WARNING] Unsupported animation curve to \'alpha\': ani name(%s) time(%f) timeline(%s)' % (ani['name'], time, t['name']))
 
                     record_key_frm_action(acts, time, key, bone_init_info, 'alpha', kfrm['alpha'] == None and 1 or kfrm['alpha'])
 
@@ -855,7 +855,7 @@ def output_entity2spine(entity, folder_file_map, out_folder, out_name):
     file_name = "%s-%s.%s" % (out_name, entity['name'], SPINE_EXT)
     output_path = os.path.join(out_folder, file_name)
     write_json(spine_obj, output_path)
-    print '[INFO] Converted entity: %s to %s' % (entity['name'], output_path)
+    print('[INFO] Converted entity: %s to %s' % (entity['name'], output_path))
 
 
 def convert2spine(entities, folder_file_map, out_folder, out_name):
@@ -864,7 +864,7 @@ def convert2spine(entities, folder_file_map, out_folder, out_name):
         output_entity2spine(entity, folder_file_map, out_folder, out_name)
 
 def convert(in_path, out_folder, out_name):
-    print '[INFO] Converting...: %s' % (in_path)
+    print('[INFO] Converting...: %s' % (in_path))
     entities, folder_file_map = extract_spriter_data(in_path)
     convert2spine(entities, folder_file_map, out_folder, out_name)
 
@@ -877,10 +877,10 @@ def makedir_p(path):
 
 def main(in_path, out_path):
     if not os.path.exists(in_path):
-        print '[ERROR] \'input path\': %s unexist!' % (in_path)
+        print('[ERROR] \'input path\': %s unexist!' % (in_path))
         return
 
-    print '[INFO] Start convert: %s => %s' % (in_path, out_path)
+    print('[INFO] Start convert: %s => %s' % (in_path, out_path))
 
     if not os.path.isdir(in_path):
         file_name = None
@@ -908,7 +908,7 @@ def main(in_path, out_path):
             out_file = os.path.splitext(f)[0]
             convert(in_file, out_folder, out_file)
 
-    print '[INFO] End convert!'
+    print('[INFO] End convert!')
 
 
 if __name__ == '__main__':
